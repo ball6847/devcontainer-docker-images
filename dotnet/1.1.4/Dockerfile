@@ -3,7 +3,7 @@
 # Licensed under the MIT License. See https://go.microsoft.com/fwlink/?linkid=2090316 for license information.
 #-------------------------------------------------------------------------------------------------------------
 
-FROM mcr.microsoft.com/dotnet/core/sdk:1.1.13
+FROM ubuntu:18.04
 
 # This Dockerfile adds a non-root user with sudo access. Use the "remoteUser"
 # property in devcontainer.json to use it. On Linux, the container user's GID/UIDs
@@ -17,6 +17,7 @@ ARG USER_GID=$USER_UID
 ARG INSTALL_NODE="true"
 ARG NODE_VERSION="lts/*"
 ENV NVM_DIR=/home/vscode/.nvm
+ENV PATH=/dotnet:$PATH
 
 # [Optional] Install the Azure CLI
 ARG INSTALL_AZURE_CLI="false"
@@ -29,7 +30,7 @@ RUN apt-get update \
     && apt-get -y install --no-install-recommends apt-utils dialog 2>&1 \
     #
     # Verify git, process tools, lsb-release (common in install instructions for CLIs) installed
-    && apt-get -y install git iproute2 procps apt-transport-https gnupg2 curl lsb-release \
+    && apt-get -y install git iproute2 procps apt-transport-https gnupg2 curl lsb-release wget \
     #
     # Create a non-root user to use if preferred - see https://aka.ms/vscode-remote/containers/non-root-user.
     && groupadd --gid $USER_GID $USERNAME \
@@ -38,8 +39,6 @@ RUN apt-get update \
     && apt-get install -y sudo \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME\
     && chmod 0440 /etc/sudoers.d/$USERNAME \
-    # Install dotnet tool
-    && dotnet tool install --global dotnet-watch --version 2.2.0 \
     #
     # [Optional] Install Node.js for ASP.NET Core Web Applicationss
     && if [ "$INSTALL_NODE" = "true" ]; then \
@@ -70,6 +69,20 @@ RUN apt-get update \
         && apt-get update \
         && apt-get install -y azure-cli; \
     fi \
+    #
+    # [Optional] Install dotnet core
+    && cd / && wget https://dot.net/v1/dotnet-install.sh && chmod +x dotnet-install.sh && ./dotnet-install.sh --install-dir /dotnet --channel 3.1 \
+    && wget http://archive.ubuntu.com/ubuntu/pool/main/i/icu/libicu55_55.1-7_amd64.deb \
+    && wget http://archive.ubuntu.com/ubuntu/pool/main/l/llvm-toolchain-3.6/libllvm3.6v5_3.6.2-3ubuntu2_amd64.deb \
+    && wget http://archive.ubuntu.com/ubuntu/pool/main/l/llvm-toolchain-3.6/liblldb-3.6_3.6.2-3ubuntu2_amd64.deb \
+    && cd /dotnet && wget https://download.microsoft.com/download/F/4/F/F4FCB6EC-5F05-4DF8-822C-FF013DF1B17F/dotnet-dev-ubuntu.16.04-x64.1.1.4.tar.gz && tar -zxf dotnet-dev-ubuntu.16.04-x64.1.1.4.tar.gz && rm dotnet-dev-ubuntu.16.04-x64.1.1.4.tar.gz \
+    && cd / \
+    && apt-get install -y libcurl3 liblttng-ust0 libssl1.0.0 libkrb5-3 zlib1g libunwind8 libedit2 \
+    && dpkg -i libicu55_55.1-7_amd64.deb || true \
+    && dpkg -i libllvm3.6v5_3.6.2-3ubuntu2_amd64.deb || true  \
+    && dpkg -i liblldb-3.6_3.6.2-3ubuntu2_amd64.deb || true \
+    && apt --fix-broken -y install \
+    && rm -f libicu52_52.1-3_amd64.deb liblldb-3.6_3.6-2ubuntu1~trusty2_amd64.deb libllvm3.6_3.6-2ubuntu1~trusty2_amd64.deb \
     #
     # Clean up
     && apt-get autoremove -y \
